@@ -4,6 +4,8 @@
     ],
     "routes": [
       { "src": "/install", "dest": "server.js" },
-      { "src": "/api/auth/callback", "dest": "server.js" }
+      { "src": "/api/auth/callback", "dest": "server.js" },
+      { "src": "/heartbeat", "dest": "server.js" },
+      { "src": "/(.*)", "dest": "server.js" }
     ]
   }
