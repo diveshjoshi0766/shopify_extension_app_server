@@ -1,6 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
+// Import the full Shopify API package with Node adapter
+const { shopifyApi, ApiVersion } = require('@shopify/shopify-api');
+const { NodeAdapter } = require('@shopify/shopify-api/adapters/node'); 
+
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,18 +13,20 @@ const shopify = shopifyApi({
   apiKey: '5e8a0f203d8c3c433a539bf46a2e54ea',
   apiSecretKey: '530b6f4b62a883758ee2606a4df75860',
   scopes: 'write_delivery_customizations',
-  hostName: process.env.SHOPIFY_HOST,
-  apiVersion: '2025-01',
-  isEmbeddedApp: true,
+  hostName: 'shopify-extension-app-server.vercel.app',
+  apiVersion: ApiVersion.January25, // Use the enum instead of string
+  adapter: NodeAdapter,
+  isEmbeddedApp: true
 });
+
 // Heartbeat endpoint to check if server is alive
 app.get('/heartbeat', (req, res) => {
-    res.status(200).json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      message: 'Server is running'
-    });
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    message: 'Server is running'
   });
+});
 
 // Install endpoint (start OAuth flow)
 app.get('/install', async (req, res) => {
