@@ -14,10 +14,13 @@ const shopify = shopifyApi({
   apiVersion: '2025-01',
   isEmbeddedApp: true,
 });
-app.get('/', async (req, res) => {
-    res.send(`
-        <h1>Installation Successful</h1>
-      `);
+// Heartbeat endpoint to check if server is alive
+app.get('/heartbeat', (req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      message: 'Server is running'
+    });
   });
 
 // Install endpoint (start OAuth flow)
