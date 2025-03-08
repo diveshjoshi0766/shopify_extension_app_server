@@ -1,0 +1,9 @@
+{
+    "builds": [
+      { "src": "server.js", "use": "@vercel/node" }
+    ],
+    "routes": [
+      { "src": "/install", "dest": "server.js" },
+      { "src": "/api/auth/callback", "dest": "server.js" }
+    ]
+  }
