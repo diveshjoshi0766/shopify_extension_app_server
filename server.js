@@ -45,30 +45,29 @@ app.get('/heartbeat', (req, res) => {
 
 // Install endpoint (start OAuth flow)
 app.get('/install', async (req, res) => {
-  const shop = req.query.shop;
-  if (!shop) {
-    return res.status(400).send('Missing shop parameter. Please add ?shop=your-shop.myshopify.com');
-  }
+    try {
+      const shop = req.query.shop;
+      console.log('Logging req:', req);
+      if (!shop) {
+        return res.status(400).send('Missing shop parameter');
+      }
   
-  try {
-    // Log the parameters for debugging
-    console.log('Starting auth for shop:', shop);
-    
-    const authRoute = await shopify.auth.begin({
-      shop,
-      callbackPath: '/api/auth/callback',
-      isOnline: false,
-    });
-    
-    // Log the generated auth URL for debugging
-    console.log('Auth URL:', authRoute);
-    
-    res.redirect(authRoute);
-  } catch (error) {
-    console.error('Auth begin error:', error);
-    res.status(500).send('Error starting authentication flow');
-  }
-});
+      console.log('Starting auth for shop:', shop);
+
+      const authRoute = await shopify.auth.begin({
+        shop,
+        callbackPath: '/api/auth/callback',
+        isOnline: false,
+        req, // <-- THIS IS THE CRUCIAL FIX
+      });
+  
+      console.log('Auth URL:', authRoute);
+      res.redirect(authRoute);
+    } catch (error) {
+      console.error('Auth begin error:', error);
+      res.status(500).send('Error starting authentication flow');
+    }
+  });
 
 // Handle OAuth callback
 app.get('/api/auth/callback', async (req, res) => {
