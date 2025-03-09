@@ -48,61 +48,50 @@ app.get('/install', async (req, res) => {
     try {
       const shop = req.query.shop;
       console.log('Logging req:', req);
-      if (!shop) {
-        return res.status(400).send('Missing shop parameter');
-      }
+      if (!shop) return res.status(400).send('Shop parameter required');
   
       console.log('Starting auth for shop:', shop);
 
-      const authRoute = await shopify.auth.begin({
+      const authUrl = await shopify.auth.begin({
         shop,
         callbackPath: '/api/auth/callback',
         isOnline: false,
-        req, // <-- THIS IS THE CRUCIAL FIX
+        rawRequest: {  // Explicitly pass headers
+          headers: req.headers,
+          url: req.url,
+        }
       });
   
-      console.log('Auth URL:', authRoute);
-      res.redirect(authRoute);
+      res.redirect(authUrl);
     } catch (error) {
-      console.error('Auth begin error:', error);
-      res.status(500).send('Error starting authentication flow');
+      console.error('Auth error:', error);
+      res.status(500).send('Authentication failed');
     }
   });
-
-// Handle OAuth callback
-app.get('/api/auth/callback', async (req, res) => {
-  try {
-    // Log all query parameters for debugging
-    console.log('Callback received with query params:', req.query);
-    
-    const { code, shop } = req.query;
-    if (!code || !shop) {
-      return res.status(400).send('Missing required parameters');
+  
+  // OAuth callback handler
+  app.get('/api/auth/callback', async (req, res) => {
+    try {
+        console.log('Callback received with query params:', req.query);
+      // Validate HMAC first
+      const valid = shopify.auth.oauth.validateHmac(req.query);
+      if (!valid) return res.status(400).send('Invalid request');
+  
+      // Exchange code for token
+      const { access_token, shop } = await shopify.auth.oauth.tokenize({
+        code: req.query.code,
+        shop: req.query.shop,
+      });
+  
+      console.log('✅ Access Token:', access_token?.slice(0, 10) + '...');
+      res.send(`<h1>Success!</h1><p>Token received for ${shop}</p>`);
+      
+    } catch (err) {
+      console.error('Tokenization error:', err);
+      res.status(500).send('Token exchange failed');
     }
-    
-    // Validate HMAC signature
-    const valid = shopify.auth.oauth.validateHmac(req.query);
-    if (!valid) return res.status(400).send('Invalid HMAC validation');
-
-    // Exchange code for access token
-    const { access_token } = await shopify.auth.oauth.tokenize({
-      code,
-      shop,
-    });
-
-    console.log('🔑 Shopify Access Token:', access_token);
-    console.log('🏪 Store Domain:', shop);
-
-    res.send(`
-      <h1>Installation Successful</h1>
-      <p>Token for ${shop} logged in server console</p>
-    `);
-
-  } catch (err) {
-    console.error('🚨 Installation failed:', err);
-    res.status(500).send(`Installation failed - Error: ${err.message}`);
-  }
-});
+  });
+  
 
 // Make sure to add this callback handler with the exact URI pattern Shopify expects
 app.get('/auth/callback', (req, res) => {
