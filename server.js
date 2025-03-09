@@ -1,9 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-// Import the full Shopify API package with Node adapter
 const { shopifyApi, ApiVersion } = require('@shopify/shopify-api');
 const { NodeAdapter } = require('@shopify/shopify-api/adapters/node'); 
-
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,12 +12,29 @@ const shopify = shopifyApi({
   apiSecretKey: '530b6f4b62a883758ee2606a4df75860',
   scopes: 'write_delivery_customizations',
   hostName: 'shopify-extension-app-server.vercel.app',
-  apiVersion: ApiVersion.January25, // Use the enum instead of string
+  apiVersion: ApiVersion.January25,
   adapter: NodeAdapter,
   isEmbeddedApp: true
 });
 
-// Heartbeat endpoint to check if server is alive
+// Root endpoint - handle initial request
+app.get('/', (req, res) => {
+  const shop = req.query.shop;
+
+  console.log("shop >><<", shop);
+
+  if (shop) {
+    // If shop parameter is present, redirect to install
+    return res.redirect(`/install?shop=${shop}`);
+  }
+  // Otherwise show a simple landing page
+  res.send(`
+    <h1>Shopify App</h1>
+    <p>Visit /install?shop=dynavapeu.myshopify.com to install this app</p>
+  `);
+});
+
+// Heartbeat endpoint
 app.get('/heartbeat', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -31,19 +46,40 @@ app.get('/heartbeat', (req, res) => {
 // Install endpoint (start OAuth flow)
 app.get('/install', async (req, res) => {
   const shop = req.query.shop;
-  const authRoute = await shopify.auth.begin({
-    shop,
-    callbackPath: '/api/auth/callback',
-    isOnline: false,
-  });
+  if (!shop) {
+    return res.status(400).send('Missing shop parameter. Please add ?shop=your-shop.myshopify.com');
+  }
   
-  res.redirect(authRoute);
+  try {
+    // Log the parameters for debugging
+    console.log('Starting auth for shop:', shop);
+    
+    const authRoute = await shopify.auth.begin({
+      shop,
+      callbackPath: '/api/auth/callback',
+      isOnline: false,
+    });
+    
+    // Log the generated auth URL for debugging
+    console.log('Auth URL:', authRoute);
+    
+    res.redirect(authRoute);
+  } catch (error) {
+    console.error('Auth begin error:', error);
+    res.status(500).send('Error starting authentication flow');
+  }
 });
 
 // Handle OAuth callback
 app.get('/api/auth/callback', async (req, res) => {
   try {
+    // Log all query parameters for debugging
+    console.log('Callback received with query params:', req.query);
+    
     const { code, shop } = req.query;
+    if (!code || !shop) {
+      return res.status(400).send('Missing required parameters');
+    }
     
     // Validate HMAC signature
     const valid = shopify.auth.oauth.validateHmac(req.query);
@@ -55,7 +91,6 @@ app.get('/api/auth/callback', async (req, res) => {
       shop,
     });
 
-    // ➡️ THIS IS FOR DEMO ONLY - DO NOT LOG TOKENS IN PRODUCTION ⬅️
     console.log('🔑 Shopify Access Token:', access_token);
     console.log('🏪 Store Domain:', shop);
 
@@ -66,8 +101,15 @@ app.get('/api/auth/callback', async (req, res) => {
 
   } catch (err) {
     console.error('🚨 Installation failed:', err);
-    res.status(500).send('Installation failed - check server logs');
+    res.status(500).send(`Installation failed - Error: ${err.message}`);
   }
+});
+
+// Make sure to add this callback handler with the exact URI pattern Shopify expects
+app.get('/auth/callback', (req, res) => {
+  // Redirect to our actual handler with the same query parameters
+  const queryString = new URLSearchParams(req.query).toString();
+  res.redirect(`/api/auth/callback?${queryString}`);
 });
 
 app.listen(port, () => {
