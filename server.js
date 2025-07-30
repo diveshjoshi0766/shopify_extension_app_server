@@ -7,7 +7,7 @@ const port = process.env.PORT || 3000;
 
 // Configuration (simulating ConfigService)
 const config = {
-  'shopify.appProxy.clientId': '5e8a0f203d8c3c433a539bf46a2e54ea',
+  'shopify.appProxy.clientId': '3abe9ea954ea0d5eb219396b1f8b9e77',
   'shopify.appProxy.clientSecret': '530b6f4b62a883758ee2606a4df75860',
   'shopify.appProxy.scopes': ['write_delivery_customizations'],
   'apiUrl': process.env.API_URL || 'https://shopify-extension-app-server.vercel.app'
